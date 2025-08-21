@@ -1,7 +1,7 @@
 import logging
 from datetime import datetime
 from typing import Dict, Any
-from ml_brand_extractor import MLBrandExtractor
+from claude_brand_extractor import ClaudeBrandExtractor
 
 logger = logging.getLogger(__name__)
 
@@ -9,7 +9,7 @@ class DataEnricher:
     """Handles enrichment of normalized data with additional fields"""
     
     def __init__(self):
-        self.brand_extractor = MLBrandExtractor()
+        self.brand_extractor = ClaudeBrandExtractor()
         # Check if we're in test mode
         import os
         self.test_mode = os.getenv('TEST_MODE', 'false').lower() == 'true'
@@ -60,7 +60,19 @@ class DataEnricher:
             
             # Extract brand if not present or empty
             if not item.get('item_brand'):
-                item = self.brand_extractor.enrich_item_with_brand(item)
+                # Use manufacturer_item_description for brand extraction
+                item_for_extraction = {
+                    'item_name': item.get('item_name', ''),
+                    'manufacturer': item.get('manufacturer_name', ''),
+                    'description': item.get('manufacturer_item_description', '')
+                }
+                enriched_item = self.brand_extractor.enrich_item_with_brand(item_for_extraction)
+                
+                # Update the original item with brand info
+                item['item_brand'] = enriched_item.get('item_brand', 'Unknown')
+                item['brand_confidence'] = enriched_item.get('brand_confidence', 0.0)
+                item['brand_extraction_method'] = enriched_item.get('brand_extraction_method', 'unknown')
+                
                 # Only log high confidence extractions to reduce spam
                 if item.get('brand_confidence', 0) >= 0.7:
                     logger.info(f"Extracted brand '{item.get('item_brand')}' for item '{item.get('item_name', 'unknown')}' "
@@ -77,12 +89,16 @@ class DataEnricher:
         if not message.get('processed_at'):
             message['processed_at'] = datetime.now().isoformat()
         
-        # Enrich promotions with default values
-        for promotion in message.get('promotions', []):
-            if not promotion.get('allow_multiple_discounts'):
-                promotion['allow_multiple_discounts'] = False
-            if not promotion.get('reward_type'):
-                promotion['reward_type'] = '1'
+        # Enrich discounts with default values
+        for discount in message.get('discounts', []):
+            if discount.get('allow_multiple_discounts') is None:
+                discount['allow_multiple_discounts'] = False
+            if discount.get('min_qty') is None:
+                discount['min_qty'] = 0.0
+            if discount.get('is_weighted_promo') is None:
+                discount['is_weighted_promo'] = False
+            if discount.get('is_gift_item') is None:
+                discount['is_gift_item'] = False
         
         return message
     

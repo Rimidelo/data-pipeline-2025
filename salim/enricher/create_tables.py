@@ -3,7 +3,7 @@ import psycopg2
 from dotenv import load_dotenv
 
 def create_tables():
-    """Create both stores and items tables"""
+    """Create stores, items, and discounts tables with proper relationships"""
     
     load_dotenv()
     database_url = os.getenv('DATABASE_URL')
@@ -17,10 +17,16 @@ def create_tables():
         conn = psycopg2.connect(database_url)
         cursor = conn.cursor()
         
+        # Drop existing tables in correct order (due to foreign keys)
+        print("Dropping existing tables...")
+        cursor.execute("DROP TABLE IF EXISTS discounts CASCADE;")
+        cursor.execute("DROP TABLE IF EXISTS items CASCADE;")
+        cursor.execute("DROP TABLE IF EXISTS stores CASCADE;")
+        
         # Create stores table
         print("Creating stores table...")
         stores_sql = """
-        CREATE TABLE IF NOT EXISTS stores (
+        CREATE TABLE stores (
             id SERIAL PRIMARY KEY,
             chain_id VARCHAR(50) NOT NULL,
             chain_name VARCHAR(255) NOT NULL,
@@ -44,54 +50,110 @@ def create_tables():
         
         # Create stores indexes
         stores_indexes = """
-        CREATE INDEX IF NOT EXISTS idx_stores_chain_id ON stores(chain_id);
-        CREATE INDEX IF NOT EXISTS idx_stores_store_id ON stores(store_id);
-        CREATE INDEX IF NOT EXISTS idx_stores_chain_store ON stores(chain_id, store_id);
-        CREATE INDEX IF NOT EXISTS idx_stores_sub_chain ON stores(sub_chain_id);
-        CREATE INDEX IF NOT EXISTS idx_stores_city ON stores(city);
+        CREATE INDEX idx_stores_chain_id ON stores(chain_id);
+        CREATE INDEX idx_stores_store_id ON stores(store_id);
+        CREATE INDEX idx_stores_chain_store ON stores(chain_id, store_id);
+        CREATE INDEX idx_stores_sub_chain ON stores(sub_chain_id);
+        CREATE INDEX idx_stores_city ON stores(city);
         """
         cursor.execute(stores_indexes)
         
-        # Create items table
+        # Create items table (based on PriceFull files)
         print("Creating items table...")
         items_sql = """
-        CREATE TABLE IF NOT EXISTS items (
+        CREATE TABLE items (
             id SERIAL PRIMARY KEY,
             chain_id VARCHAR(50) NOT NULL,
             store_id VARCHAR(50) NOT NULL,
             item_code VARCHAR(50) NOT NULL,
+            item_id VARCHAR(50),
+            item_type VARCHAR(10),
             item_name VARCHAR(500) NOT NULL,
+            manufacturer_name VARCHAR(255),
+            manufacture_country VARCHAR(100),
+            manufacturer_item_description TEXT,
+            unit_qty VARCHAR(50),
+            quantity DECIMAL(10,3),
+            unit_of_measure VARCHAR(50),
+            is_weighted BOOLEAN DEFAULT FALSE,
+            qty_in_package VARCHAR(100),
             item_price DECIMAL(10,2),
-            item_unit VARCHAR(50),
-            item_unit_measure VARCHAR(50),
-            item_quantity DECIMAL(10,3),
-            item_manufacturer VARCHAR(255),
-            item_category VARCHAR(255),
-            item_subcategory VARCHAR(255),
+            unit_of_measure_price DECIMAL(12,4),
+            allow_discount BOOLEAN DEFAULT TRUE,
+            item_status INTEGER,
             item_brand VARCHAR(255),
-            item_promotion BOOLEAN DEFAULT FALSE,
-            item_promotion_price DECIMAL(10,2),
-            item_promotion_description TEXT,
-            last_update_date DATE,
-            last_update_time TIME,
+            brand_confidence DECIMAL(3,2),
+            brand_extraction_method VARCHAR(50),
+            price_update_date TIMESTAMP,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            UNIQUE(chain_id, store_id, item_code, last_update_date)
+            UNIQUE(chain_id, store_id, item_code, price_update_date),
+            FOREIGN KEY (chain_id, store_id) REFERENCES stores(chain_id, store_id)
         );
         """
         cursor.execute(items_sql)
         
         # Create items indexes
         items_indexes = """
-        CREATE INDEX IF NOT EXISTS idx_items_chain_id ON items(chain_id);
-        CREATE INDEX IF NOT EXISTS idx_items_store_id ON items(store_id);
-        CREATE INDEX IF NOT EXISTS idx_items_item_code ON items(item_code);
-        CREATE INDEX IF NOT EXISTS idx_items_chain_store ON items(chain_id, store_id);
-        CREATE INDEX IF NOT EXISTS idx_items_price ON items(item_price);
-        CREATE INDEX IF NOT EXISTS idx_items_category ON items(item_category);
-        CREATE INDEX IF NOT EXISTS idx_items_brand ON items(item_brand);
+        CREATE INDEX idx_items_chain_id ON items(chain_id);
+        CREATE INDEX idx_items_store_id ON items(store_id);
+        CREATE INDEX idx_items_item_code ON items(item_code);
+        CREATE INDEX idx_items_chain_store ON items(chain_id, store_id);
+        CREATE INDEX idx_items_price ON items(item_price);
+        CREATE INDEX idx_items_brand ON items(item_brand);
+        CREATE INDEX idx_items_manufacturer ON items(manufacturer_name);
+        CREATE INDEX idx_items_price_update ON items(price_update_date);
         """
         cursor.execute(items_indexes)
+        
+        # Create discounts table (based on PromoFull files)
+        print("Creating discounts table...")
+        discounts_sql = """
+        CREATE TABLE discounts (
+            id SERIAL PRIMARY KEY,
+            chain_id VARCHAR(50) NOT NULL,
+            store_id VARCHAR(50) NOT NULL,
+            promotion_id VARCHAR(50) NOT NULL,
+            promotion_description TEXT,
+            promotion_update_date TIMESTAMP,
+            promotion_start_date DATE,
+            promotion_start_hour TIME,
+            promotion_end_date DATE,
+            promotion_end_hour TIME,
+            reward_type INTEGER,
+            allow_multiple_discounts BOOLEAN DEFAULT FALSE,
+            is_weighted_promo BOOLEAN DEFAULT FALSE,
+            min_qty DECIMAL(10,3),
+            discounted_price DECIMAL(10,2),
+            discounted_price_per_mida DECIMAL(10,2),
+            min_no_of_item_offered INTEGER,
+            item_code VARCHAR(50),
+            item_type VARCHAR(10),
+            is_gift_item BOOLEAN DEFAULT FALSE,
+            club_id VARCHAR(50),
+            additional_is_coupon BOOLEAN DEFAULT FALSE,
+            additional_gift_count INTEGER DEFAULT 0,
+            additional_is_total BOOLEAN DEFAULT FALSE,
+            additional_is_active BOOLEAN DEFAULT TRUE,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE(chain_id, store_id, promotion_id, item_code),
+            FOREIGN KEY (chain_id, store_id) REFERENCES stores(chain_id, store_id)
+        );
+        """
+        cursor.execute(discounts_sql)
+        
+        # Create discounts indexes
+        discounts_indexes = """
+        CREATE INDEX idx_discounts_chain_id ON discounts(chain_id);
+        CREATE INDEX idx_discounts_store_id ON discounts(store_id);
+        CREATE INDEX idx_discounts_promotion_id ON discounts(promotion_id);
+        CREATE INDEX idx_discounts_item_code ON discounts(item_code);
+        CREATE INDEX idx_discounts_chain_store ON discounts(chain_id, store_id);
+        CREATE INDEX idx_discounts_dates ON discounts(promotion_start_date, promotion_end_date);
+        CREATE INDEX idx_discounts_price ON discounts(discounted_price);
+        """
+        cursor.execute(discounts_indexes)
         
         conn.commit()
         print("Tables created successfully!")
@@ -100,15 +162,38 @@ def create_tables():
         cursor.execute("""
             SELECT table_name 
             FROM information_schema.tables 
-            WHERE table_schema = 'public' AND table_name IN ('stores', 'items')
+            WHERE table_schema = 'public' AND table_name IN ('stores', 'items', 'discounts')
+            ORDER BY table_name
         """)
         
         tables = [row[0] for row in cursor.fetchall()]
-        if 'stores' in tables and 'items' in tables:
-            print("Both tables verified!")
-        else:
-            print("Some tables were not created")
-            return False
+        print(f"Created tables: {', '.join(tables)}")
+        
+        # Show table relationships
+        cursor.execute("""
+            SELECT 
+                tc.table_name,
+                kcu.column_name,
+                ccu.table_name AS foreign_table_name,
+                ccu.column_name AS foreign_column_name
+            FROM 
+                information_schema.table_constraints AS tc 
+                JOIN information_schema.key_column_usage AS kcu
+                  ON tc.constraint_name = kcu.constraint_name
+                  AND tc.table_schema = kcu.table_schema
+                JOIN information_schema.constraint_column_usage AS ccu
+                  ON ccu.constraint_name = tc.constraint_name
+                  AND ccu.table_schema = tc.table_schema
+            WHERE tc.constraint_type = 'FOREIGN KEY' 
+            AND tc.table_schema = 'public'
+            ORDER BY tc.table_name;
+        """)
+        
+        relationships = cursor.fetchall()
+        if relationships:
+            print("\nForeign key relationships:")
+            for rel in relationships:
+                print(f"  {rel[0]}.{rel[1]} -> {rel[2]}.{rel[3]}")
         
         cursor.close()
         conn.close()
@@ -121,6 +206,6 @@ def create_tables():
 if __name__ == "__main__":
     success = create_tables()
     if success:
-        print("Database setup complete.")
+        print("\nDatabase setup complete.")
     else:
-        print("Database setup failed.")
+        print("\nDatabase setup failed.")

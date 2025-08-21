@@ -171,17 +171,18 @@ class QueueConsumer:
             # Set QoS for batch processing
             self.rabbitmq_channel.basic_qos(prefetch_count=self.batch_size)
             
-            # Start consuming from both queues
+            # Start consuming from both PriceFull and PromoFull queues
             self.rabbitmq_channel.basic_consume(
                 queue=self.pricefull_queue,
                 on_message_callback=self.callback
             )
+            
             self.rabbitmq_channel.basic_consume(
                 queue=self.promofull_queue,
                 on_message_callback=self.callback
             )
 
-            logger.info("Consumer started. Press Ctrl+C to stop.")
+            logger.info("Consumer started for PriceFull and PromoFull messages. Press Ctrl+C to stop.")
             self.rabbitmq_channel.start_consuming()
 
         except KeyboardInterrupt:

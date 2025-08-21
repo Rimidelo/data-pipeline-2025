@@ -60,22 +60,23 @@ class DataNormalizer:
         for item in items_data:
             normalized_item = {
                 'item_code': item.get('ItemCode'),
+                'item_id': item.get('ItemId'),
+                'item_type': item.get('ItemType'),
                 'item_name': item.get('ItemName'),
-                'item_price': float(item.get('ItemPrice', 0)),
-                'item_unit': item.get('UnitQty'),
-                'item_unit_measure': item.get('UnitOfMeasure'),
-                'item_quantity': float(item.get('Quantity', 0)),
-                'item_manufacturer': item.get('ManufacturerName'),
-                'item_description': item.get('ManufacturerItemDescription'),
-                'item_category': item.get('ItemCategory'),
-                'item_subcategory': item.get('ItemSubCategory'),
-                'item_brand': item.get('ItemBrand'),  # Will be enriched later
-                'item_promotion': bool(item.get('ItemPromotion', False)),
-                'item_promotion_price': float(item.get('ItemPromotionPrice', 0)),
-                'item_promotion_description': item.get('ItemPromotionDescription'),
+                'manufacturer_name': item.get('ManufacturerName'),
                 'manufacture_country': item.get('ManufactureCountry'),
-                'last_update_date': item.get('PriceUpdateDate'),
-                'last_update_time': data.get('LastUpdateTime')
+                'manufacturer_item_description': item.get('ManufacturerItemDescription'),
+                'unit_qty': item.get('UnitQty'),
+                'quantity': float(item.get('Quantity', 0)),
+                'unit_of_measure': item.get('UnitOfMeasure'),
+                'is_weighted': bool(int(item.get('bIsWeighted', 0))),
+                'qty_in_package': item.get('QtyInPackage'),
+                'item_price': float(item.get('ItemPrice', 0)),
+                'unit_of_measure_price': float(item.get('UnitOfMeasurePrice', 0)),
+                'allow_discount': bool(int(item.get('AllowDiscount', 1))),
+                'item_status': int(item.get('ItemStatus', 1)),
+                'item_brand': item.get('ItemBrand'),  # Will be enriched later
+                'price_update_date': item.get('PriceUpdateDate')
             }
             normalized['items'].append(normalized_item)
         
@@ -87,7 +88,7 @@ class DataNormalizer:
             'type': 'promo_data',
             'chain_id': data.get('ChainId'),
             'store_id': data.get('StoreId', metadata.get('store_id', 'unknown')),
-            'promotions': []
+            'discounts': []
         }
         
         # Extract promotions from the data structure
@@ -96,33 +97,44 @@ class DataNormalizer:
             promotions_data = [promotions_data]
         
         for promotion in promotions_data:
-            normalized_promotion = {
-                'promotion_id': promotion.get('PromotionId'),
-                'promotion_description': promotion.get('PromotionDescription'),
-                'promotion_update_date': promotion.get('PromotionUpdateDate'),
-                'promotion_start_date': promotion.get('PromotionStartDate'),
-                'promotion_end_date': promotion.get('PromotionEndDate'),
-                'discounted_price': float(promotion.get('DiscountedPrice', 0)),
-                'min_qty': float(promotion.get('MinQty', 0)),
-                'reward_type': promotion.get('RewardType'),
-                'allow_multiple_discounts': bool(promotion.get('AllowMultipleDiscounts', False)),
-                'items': []
-            }
-            
             # Extract promotion items
             promo_items = promotion.get('PromotionItems', {}).get('Item', [])
             if not isinstance(promo_items, list):
                 promo_items = [promo_items]
             
+            # Extract additional restrictions
+            additional = promotion.get('AdditionalRestrictions', {})
+            
+            # Extract club info
+            clubs = promotion.get('Clubs', {})
+            club_id = clubs.get('ClubId') if isinstance(clubs, dict) else None
+            
             for item in promo_items:
-                promo_item = {
+                normalized_discount = {
+                    'promotion_id': promotion.get('PromotionId'),
+                    'promotion_description': promotion.get('PromotionDescription'),
+                    'promotion_update_date': promotion.get('PromotionUpdateDate'),
+                    'promotion_start_date': promotion.get('PromotionStartDate'),
+                    'promotion_start_hour': promotion.get('PromotionStartHour'),
+                    'promotion_end_date': promotion.get('PromotionEndDate'),
+                    'promotion_end_hour': promotion.get('PromotionEndHour'),
+                    'reward_type': int(promotion.get('RewardType', 0)),
+                    'allow_multiple_discounts': bool(int(promotion.get('AllowMultipleDiscounts', 0))),
+                    'is_weighted_promo': bool(int(promotion.get('IsWeightedPromo', 0))),
+                    'min_qty': float(promotion.get('MinQty', 0)),
+                    'discounted_price': float(promotion.get('DiscountedPrice', 0)),
+                    'discounted_price_per_mida': float(promotion.get('DiscountedPricePerMida', 0)),
+                    'min_no_of_item_offered': int(promotion.get('MinNoOfItemOfered', 0)),
                     'item_code': item.get('ItemCode'),
                     'item_type': item.get('ItemType'),
-                    'is_gift_item': bool(item.get('IsGiftItem', False))
+                    'is_gift_item': bool(int(item.get('IsGiftItem', 0))),
+                    'club_id': club_id,
+                    'additional_is_coupon': bool(int(additional.get('AdditionalIsCoupon', 0))),
+                    'additional_gift_count': int(additional.get('AdditionalGiftCount', 0)),
+                    'additional_is_total': bool(int(additional.get('AdditionalIsTotal', 0))),
+                    'additional_is_active': bool(int(additional.get('AdditionalIsActive', 1)))
                 }
-                normalized_promotion['items'].append(promo_item)
-            
-            normalized['promotions'].append(normalized_promotion)
+                normalized['discounts'].append(normalized_discount)
         
         return normalized
     

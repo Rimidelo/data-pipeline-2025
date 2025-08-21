@@ -39,16 +39,16 @@ class DataValidator:
     
     def validate_promo_data(self, message: Dict[str, Any]) -> bool:
         """Validate promotion data"""
-        required_fields = ['chain_id', 'store_id', 'promotions']
+        required_fields = ['chain_id', 'store_id', 'discounts']
         for field in required_fields:
             if not message.get(field):
                 logger.warning(f"Missing required field: {field}")
                 return False
         
-        # Validate promotions
-        for promotion in message.get('promotions', []):
-            if not promotion.get('promotion_id') or not promotion.get('promotion_description'):
-                logger.warning("Promotion missing required fields: promotion_id or promotion_description")
+        # Validate discounts
+        for discount in message.get('discounts', []):
+            if not discount.get('promotion_id') or not discount.get('item_code'):
+                logger.warning("Discount missing required fields: promotion_id or item_code")
                 return False
         
         return True
