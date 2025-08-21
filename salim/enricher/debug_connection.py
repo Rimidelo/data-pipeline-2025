@@ -57,32 +57,32 @@ def debug_connection():
                         print("Testing encoded URL...")
                         try:
                             conn = psycopg2.connect(new_url)
-                            print("✅ Connection successful with encoded password!")
+                            print("Connection successful with encoded password!")
                             conn.close()
                             return
                         except Exception as e:
-                            print(f"❌ Encoded URL failed: {e}")
+                            print(f"Encoded URL failed: {e}")
                     
                     print(f"Host part: {host_part}")
                 else:
-                    print("❌ Invalid credentials format")
+                    print("Invalid credentials format")
             else:
-                print("❌ Invalid URL format")
+                print("Invalid URL format")
         else:
-            print("❌ URL doesn't start with postgresql://")
+            print("URL doesn't start with postgresql://")
             
     except Exception as e:
-        print(f"❌ Error parsing URL: {e}")
+        print(f"Error parsing URL: {e}")
     
     # Try original URL
-    print("🧪 Testing original URL...")
+    print("Testing original URL...")
     try:
         conn = psycopg2.connect(database_url)
-        print("✅ Connection successful!")
+        print("Connection successful!")
         conn.close()
     except Exception as e:
-        print(f"❌ Connection failed: {e}")
-        print("💡 Try URL-encoding your password if it contains special characters")
+        print(f"Connection failed: {e}")
+        print("Try URL-encoding your password if it contains special characters")
 
 if __name__ == "__main__":
     debug_connection()
