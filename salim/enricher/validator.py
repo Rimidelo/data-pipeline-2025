@@ -11,6 +11,8 @@ class DataValidator:
         try:
             if normalized_message['type'] == 'price_data':
                 return self.validate_price_data(normalized_message)
+            elif normalized_message['type'] == 'promo_data':
+                return self.validate_promo_data(normalized_message)
             elif normalized_message['type'] == 'store_data':
                 return self.validate_store_data(normalized_message)
             else:
@@ -31,6 +33,22 @@ class DataValidator:
         for item in message.get('items', []):
             if not item.get('item_code') or not item.get('item_name'):
                 logger.warning("Item missing required fields: item_code or item_name")
+                return False
+        
+        return True
+    
+    def validate_promo_data(self, message: Dict[str, Any]) -> bool:
+        """Validate promotion data"""
+        required_fields = ['chain_id', 'store_id', 'promotions']
+        for field in required_fields:
+            if not message.get(field):
+                logger.warning(f"Missing required field: {field}")
+                return False
+        
+        # Validate promotions
+        for promotion in message.get('promotions', []):
+            if not promotion.get('promotion_id') or not promotion.get('promotion_description'):
+                logger.warning("Promotion missing required fields: promotion_id or promotion_description")
                 return False
         
         return True

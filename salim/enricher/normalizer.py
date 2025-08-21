@@ -11,13 +11,32 @@ class DataNormalizer:
         try:
             data = message.get('data', {})
             metadata = message.get('metadata', {})
+            file_type = metadata.get('file_type', '')
             
-            # Determine message type
-            if 'PriceFull' in str(data):
-                return self.normalize_price_data(data, metadata)
+            # Extract data from Root if it exists
+            root_data = data.get('Root', data)
+            
+            # Debug logging before fix
+            logger.info(f"File type: {file_type}")
+            logger.info(f"Original root_data keys: {list(root_data.keys()) if root_data else 'None'}")
+            
+            # Handle nested root structure (Root.root)
+            if root_data and 'root' in root_data:
+                logger.info(f"Found nested 'root' key, extracting...")
+                root_data = root_data['root']
+                logger.info(f"After extraction, root_data keys: {list(root_data.keys()) if root_data else 'None'}")
+            
+            logger.info(f"Final ChainId in root_data: {root_data.get('ChainId') if root_data else 'None'}")
+            
+            # Determine message type based on file_type in metadata
+            if file_type == 'PriceFull':
+                return self.normalize_price_data(root_data, metadata)
+            elif file_type == 'PromoFull':
+                return self.normalize_promo_data(root_data, metadata)  # PromoFull has different structure
             elif 'Stores' in str(data):
-                return self.normalize_store_data(data, metadata)
+                return self.normalize_store_data(root_data, metadata)
             else:
+                logger.info("Skipping generic data")
                 return self.normalize_generic_data(data, metadata)
                 
         except Exception as e:
@@ -28,8 +47,8 @@ class DataNormalizer:
         """Normalize price/product data"""
         normalized = {
             'type': 'price_data',
-            'chain_id': data.get('ChainID'),
-            'store_id': metadata.get('store_id', 'unknown'),
+            'chain_id': data.get('ChainId'),
+            'store_id': data.get('StoreId', metadata.get('store_id', 'unknown')),
             'items': []
         }
         
@@ -55,10 +74,55 @@ class DataNormalizer:
                 'item_promotion_price': float(item.get('ItemPromotionPrice', 0)),
                 'item_promotion_description': item.get('ItemPromotionDescription'),
                 'manufacture_country': item.get('ManufactureCountry'),
-                'last_update_date': data.get('LastUpdateDate'),
+                'last_update_date': item.get('PriceUpdateDate'),
                 'last_update_time': data.get('LastUpdateTime')
             }
             normalized['items'].append(normalized_item)
+        
+        return normalized
+    
+    def normalize_promo_data(self, data: Dict[str, Any], metadata: Dict[str, Any]) -> Dict[str, Any]:
+        """Normalize promotion data"""
+        normalized = {
+            'type': 'promo_data',
+            'chain_id': data.get('ChainId'),
+            'store_id': data.get('StoreId', metadata.get('store_id', 'unknown')),
+            'promotions': []
+        }
+        
+        # Extract promotions from the data structure
+        promotions_data = data.get('Promotions', {}).get('Promotion', [])
+        if not isinstance(promotions_data, list):
+            promotions_data = [promotions_data]
+        
+        for promotion in promotions_data:
+            normalized_promotion = {
+                'promotion_id': promotion.get('PromotionId'),
+                'promotion_description': promotion.get('PromotionDescription'),
+                'promotion_update_date': promotion.get('PromotionUpdateDate'),
+                'promotion_start_date': promotion.get('PromotionStartDate'),
+                'promotion_end_date': promotion.get('PromotionEndDate'),
+                'discounted_price': float(promotion.get('DiscountedPrice', 0)),
+                'min_qty': float(promotion.get('MinQty', 0)),
+                'reward_type': promotion.get('RewardType'),
+                'allow_multiple_discounts': bool(promotion.get('AllowMultipleDiscounts', False)),
+                'items': []
+            }
+            
+            # Extract promotion items
+            promo_items = promotion.get('PromotionItems', {}).get('Item', [])
+            if not isinstance(promo_items, list):
+                promo_items = [promo_items]
+            
+            for item in promo_items:
+                promo_item = {
+                    'item_code': item.get('ItemCode'),
+                    'item_type': item.get('ItemType'),
+                    'is_gift_item': bool(item.get('IsGiftItem', False))
+                }
+                normalized_promotion['items'].append(promo_item)
+            
+            normalized['promotions'].append(normalized_promotion)
         
         return normalized
     
@@ -66,7 +130,7 @@ class DataNormalizer:
         """Normalize store data"""
         normalized = {
             'type': 'store_data',
-            'chain_id': data.get('ChainID'),
+            'chain_id': data.get('ChainId'),  # Fixed: was ChainID, should be ChainId
             'chain_name': data.get('ChainName'),
             'stores': []
         }
