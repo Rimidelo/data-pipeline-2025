@@ -125,6 +125,7 @@ def load_stores():
                             updated_at = CURRENT_TIMESTAMP;
                         """
 
+
                         cursor.execute(insert_sql, (
                             chain_id, chain_name, parsed_date, parsed_time,
                             sub_chain_id, sub_chain_name, store_id, bikoret_no, store_type_int,
@@ -150,8 +151,8 @@ def load_stores():
 
         # Show sample data
         cursor.execute("""
-            SELECT chain_name, store_name, city, zip_code 
-            FROM stores 
+            SELECT chain_name, store_name, city, zip_code
+            FROM stores
             LIMIT 5;
         """)
 

@@ -1,3 +1,4 @@
+import os
 import logging
 from typing import Dict, Any
 
@@ -96,11 +97,21 @@ class DataNormalizer:
         if not isinstance(promotions_data, list):
             promotions_data = [promotions_data]
         
-        for promotion in promotions_data:
+        logger.info(f"Processing {len(promotions_data)} promotions")
+        
+        # Check if we're in test mode to limit processing
+        test_mode = os.getenv('TEST_MODE', 'false').lower() == 'true'
+        max_promotions = 2 if test_mode else len(promotions_data)
+        
+        for promo_idx, promotion in enumerate(promotions_data[:max_promotions]):
             # Extract promotion items
             promo_items = promotion.get('PromotionItems', {}).get('Item', [])
             if not isinstance(promo_items, list):
                 promo_items = [promo_items]
+            
+            # Limit items in test mode too
+            max_items = 5 if test_mode else len(promo_items)
+            logger.info(f"Promotion {promo_idx + 1}/{max_promotions}: Processing {min(len(promo_items), max_items)} items out of {len(promo_items)} total")
             
             # Extract additional restrictions
             additional = promotion.get('AdditionalRestrictions', {})
@@ -109,7 +120,7 @@ class DataNormalizer:
             clubs = promotion.get('Clubs', {})
             club_id = clubs.get('ClubId') if isinstance(clubs, dict) else None
             
-            for item in promo_items:
+            for item_idx, item in enumerate(promo_items[:max_items]):
                 normalized_discount = {
                     'promotion_id': promotion.get('PromotionId'),
                     'promotion_description': promotion.get('PromotionDescription'),

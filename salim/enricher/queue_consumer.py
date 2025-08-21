@@ -38,6 +38,10 @@ class QueueConsumer:
         self.test_mode = os.getenv('TEST_MODE', 'false').lower() == 'true'
         self.test_limit = int(os.getenv('TEST_LIMIT', '5'))
         
+        # Queue-specific test mode
+        self.pricefull_only = os.getenv('PRICEFULL_ONLY', 'false').lower() == 'true'
+        self.promofull_only = os.getenv('PROMOFULL_ONLY', 'false').lower() == 'true'
+        
         # Metrics
         self.messages_processed = 0
         self.messages_failed = 0
@@ -160,7 +164,19 @@ class QueueConsumer:
     def start_consuming(self):
         """Start consuming messages from RabbitMQ"""
         try:
-            logger.info(f"Starting to consume messages from {self.pricefull_queue} and {self.promofull_queue}")
+            # Determine which queues to consume from
+            queues_to_consume = []
+            
+            if self.pricefull_only:
+                queues_to_consume = [self.pricefull_queue]
+                logger.info(f"PRICEFULL ONLY MODE - Consuming only from {self.pricefull_queue}")
+            elif self.promofull_only:
+                queues_to_consume = [self.promofull_queue]
+                logger.info(f"PROMOFULL ONLY MODE - Consuming only from {self.promofull_queue}")
+            else:
+                queues_to_consume = [self.pricefull_queue, self.promofull_queue]
+                logger.info(f"Starting to consume messages from {self.pricefull_queue} and {self.promofull_queue}")
+            
             logger.info(f"Batch size: {self.batch_size}")
             
             if self.test_mode:
@@ -171,18 +187,15 @@ class QueueConsumer:
             # Set QoS for batch processing
             self.rabbitmq_channel.basic_qos(prefetch_count=self.batch_size)
             
-            # Start consuming from both PriceFull and PromoFull queues
-            self.rabbitmq_channel.basic_consume(
-                queue=self.pricefull_queue,
-                on_message_callback=self.callback
-            )
-            
-            self.rabbitmq_channel.basic_consume(
-                queue=self.promofull_queue,
-                on_message_callback=self.callback
-            )
+            # Start consuming from selected queues
+            for queue in queues_to_consume:
+                self.rabbitmq_channel.basic_consume(
+                    queue=queue,
+                    on_message_callback=self.callback
+                )
 
-            logger.info("Consumer started for PriceFull and PromoFull messages. Press Ctrl+C to stop.")
+            queue_names = " and ".join(queues_to_consume)
+            logger.info(f"Consumer started for {queue_names} messages. Press Ctrl+C to stop.")
             self.rabbitmq_channel.start_consuming()
 
         except KeyboardInterrupt:
@@ -213,19 +226,51 @@ class QueueConsumer:
 if __name__ == "__main__":
     import sys
     
-    # Check for test mode argument
-    if len(sys.argv) > 1 and sys.argv[1] == '--test':
-        # Set test mode environment variables
-        os.environ['TEST_MODE'] = 'true'
-        if len(sys.argv) > 2:
-            try:
-                test_limit = int(sys.argv[2])
-                os.environ['TEST_LIMIT'] = str(test_limit)
-            except ValueError:
-                print("Invalid test limit. Using default of 5.")
-        print("Starting queue consumer in TEST MODE")
+    # Parse command line arguments
+    test_mode = False
+    test_limit = 5
+    pricefull_only = False
+    promofull_only = False
+    
+    i = 1
+    while i < len(sys.argv):
+        if sys.argv[i] == '--test':
+            test_mode = True
+            if i + 1 < len(sys.argv) and sys.argv[i + 1].isdigit():
+                test_limit = int(sys.argv[i + 1])
+                i += 1
+        elif sys.argv[i] == '--pricefull-only':
+            pricefull_only = True
+        elif sys.argv[i] == '--promofull-only':
+            promofull_only = True
+        elif sys.argv[i] == '--help':
+            print("Usage: python queue_consumer.py [OPTIONS]")
+            print("Options:")
+            print("  --test [N]           Test mode, process N messages (default: 5)")
+            print("  --pricefull-only     Only consume from pricefull_queue")
+            print("  --promofull-only     Only consume from promofull_queue")
+            print("  --help               Show this help message")
+            sys.exit(0)
+        i += 1
+    
+    # Set environment variables
+    os.environ['TEST_MODE'] = str(test_mode).lower()
+    os.environ['TEST_LIMIT'] = str(test_limit)
+    os.environ['PRICEFULL_ONLY'] = str(pricefull_only).lower()
+    os.environ['PROMOFULL_ONLY'] = str(promofull_only).lower()
+    
+    # Print startup message
+    if test_mode:
+        print(f"Starting queue consumer in TEST MODE (limit: {test_limit} messages)")
     else:
         print("Starting queue consumer in PRODUCTION MODE")
+    
+    if pricefull_only:
+        print("PRICEFULL ONLY MODE - Will only process PriceFull messages")
+    elif promofull_only:
+        print("PROMOFULL ONLY MODE - Will only process PromoFull messages")
+    else:
+        print("Will process both PriceFull and PromoFull messages")
     
     consumer = QueueConsumer()
     consumer.start_consuming()
