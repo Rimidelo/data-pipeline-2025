@@ -10,13 +10,13 @@ def debug_connection():
     try:
         load_dotenv()
     except UnicodeDecodeError as e:
-        print(f"❌ Error reading .env file: {e}")
-        print("💡 The .env file may be corrupted or saved in wrong encoding")
-        print("💡 Please ensure the .env file is saved as UTF-8")
+        print(f"Error reading .env file: {e}")
+        print("The .env file may be corrupted or saved in wrong encoding")
+        print("Please ensure the .env file is saved as UTF-8")
         return
     except FileNotFoundError:
-        print("⚠️  No .env file found")
-        print("💡 Please create a .env file with your DATABASE_URL")
+        print("No .env file found")
+        print("Please create a .env file with your DATABASE_URL")
         return
     
     # Get database URL
@@ -26,7 +26,7 @@ def debug_connection():
         print("DATABASE_URL not found in .env file")
         return
     
-    print("🔍 Debugging connection...")
+    print("Debugging connection...")
     print(f"Original URL: {database_url}")
     
     # Try to parse the URL to see what's wrong
@@ -45,7 +45,7 @@ def debug_connection():
                     
                     # Check if password needs URL encoding
                     if any(char in password for char in ['/', ':', '@', '?', '#', '[', ']', '%']):
-                        print("⚠️  Password contains special characters that need URL encoding")
+                        print("Password contains special characters that need URL encoding")
                         encoded_password = quote_plus(password)
                         print(f"Encoded password: {encoded_password}")
                         
@@ -54,7 +54,7 @@ def debug_connection():
                         print(f"New URL: {new_url}")
                         
                         # Test the new URL
-                        print("🧪 Testing encoded URL...")
+                        print("Testing encoded URL...")
                         try:
                             conn = psycopg2.connect(new_url)
                             print("✅ Connection successful with encoded password!")

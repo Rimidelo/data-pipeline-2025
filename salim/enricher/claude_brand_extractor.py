@@ -113,7 +113,7 @@ def main():
             ("שניצל דניאל 400גרם", "שניצל עוף")
         ]
         
-        print("🤖 Testing Claude AI Brand Extractor:")
+        print("Testing Claude AI Brand Extractor:")
         for item_name, description in test_cases:
             result = extractor.extract_brand(item_name, description)
             print(f"  • {item_name}")
@@ -123,7 +123,7 @@ def main():
             print()
             
     except Exception as e:
-        print(f"❌ Error: {e}")
+        print(f"Error: {e}")
 
 if __name__ == "__main__":
     main()

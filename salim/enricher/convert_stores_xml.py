@@ -9,7 +9,7 @@ def convert_all_stores_xml():
     
     # Check if Stores directory exists
     if not os.path.exists(stores_dir):
-        print(f"❌ Stores directory not found: {stores_dir}")
+        print(f"Stores directory not found: {stores_dir}")
         return
     
     # Find all XML files (including those without .xml extension)
@@ -32,23 +32,23 @@ def convert_all_stores_xml():
             except:
                 pass
     
-    print(f"📁 Found {len(xml_files)} XML files in {stores_dir}:")
+    print(f"Found {len(xml_files)} XML files in {stores_dir}:")
     for xml_file in xml_files:
         print(f"  • {os.path.basename(xml_file)}")
     
-    print(f"\n🔄 Converting XML files to JSON...")
+    print(f"\nConverting XML files to JSON...")
     
     converted_count = 0
     for xml_file in xml_files:
-        print(f"\n📄 Processing: {os.path.basename(xml_file)}")
+        print(f"\nProcessing: {os.path.basename(xml_file)}")
         json_path = convert_xml_to_json(xml_file)
         if json_path:
             converted_count += 1
-            print(f"✅ Success: {os.path.basename(json_path)}")
+            print(f"Success: {os.path.basename(json_path)}")
         else:
-            print(f"❌ Failed to convert: {os.path.basename(xml_file)}")
+            print(f"Failed to convert: {os.path.basename(xml_file)}")
     
-    print(f"\n🎉 Conversion complete! {converted_count}/{len(xml_files)} files converted successfully.")
+    print(f"\nConversion complete! {converted_count}/{len(xml_files)} files converted successfully.")
 
 if __name__ == "__main__":
     convert_all_stores_xml()

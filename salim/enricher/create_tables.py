@@ -24,6 +24,8 @@ def create_tables():
             id SERIAL PRIMARY KEY,
             chain_id VARCHAR(50) NOT NULL,
             chain_name VARCHAR(255) NOT NULL,
+            last_update_date DATE,
+            last_update_time TIME,
             sub_chain_id VARCHAR(50),
             sub_chain_name VARCHAR(255),
             store_id VARCHAR(50) NOT NULL,
@@ -33,8 +35,6 @@ def create_tables():
             address TEXT,
             city VARCHAR(100),
             zip_code VARCHAR(20),
-            last_update_date DATE,
-            last_update_time TIME,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             UNIQUE(chain_id, store_id)
@@ -47,6 +47,8 @@ def create_tables():
         CREATE INDEX IF NOT EXISTS idx_stores_chain_id ON stores(chain_id);
         CREATE INDEX IF NOT EXISTS idx_stores_store_id ON stores(store_id);
         CREATE INDEX IF NOT EXISTS idx_stores_chain_store ON stores(chain_id, store_id);
+        CREATE INDEX IF NOT EXISTS idx_stores_sub_chain ON stores(sub_chain_id);
+        CREATE INDEX IF NOT EXISTS idx_stores_city ON stores(city);
         """
         cursor.execute(stores_indexes)
         

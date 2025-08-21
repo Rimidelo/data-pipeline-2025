@@ -180,17 +180,17 @@ class QueueConsumer:
                 queue=self.promofull_queue,
                 on_message_callback=self.callback
             )
-            
+
             logger.info("Consumer started. Press Ctrl+C to stop.")
             self.rabbitmq_channel.start_consuming()
-            
+
         except KeyboardInterrupt:
             logger.info("Stopping consumer...")
             self.stop()
         except Exception as e:
             logger.error(f"Consumer error: {e}")
             self.stop()
-    
+
     def stop(self):
         """Stop the consumer"""
         try:
@@ -222,9 +222,9 @@ if __name__ == "__main__":
                 os.environ['TEST_LIMIT'] = str(test_limit)
             except ValueError:
                 print("Invalid test limit. Using default of 5.")
-        print("🧪 Starting queue consumer in TEST MODE")
+        print("Starting queue consumer in TEST MODE")
     else:
-        print("🚀 Starting queue consumer in PRODUCTION MODE")
+        print("Starting queue consumer in PRODUCTION MODE")
     
     consumer = QueueConsumer()
     consumer.start_consuming()
